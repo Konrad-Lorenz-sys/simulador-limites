@@ -128,7 +128,7 @@ function draw(){
     lastData.ymin = ymin; lastData.ymax = ymax;
     lastData.W = W; lastData.H = H;
 
-    // Ejes, Curva, Puntos de límite (Código omitido por ser el mismo)
+    // Ejes, Curva, Puntos de límite
     ctx.strokeStyle="#444"; ctx.lineWidth=1;
     ctx.fillStyle="#94a3b8"; ctx.font="12px monospace";
 
@@ -219,11 +219,10 @@ function draw(){
 
 function fillTable(tab){const tb=$("#table tbody");tb.innerHTML='';const n=Math.max(tab.left.length,tab.right.length);for(let i=0;i<n;i++){const L=tab.left[i]||{},R=tab.right[i]||{};tb.insertAdjacentHTML('beforeend',`<tr><td>${L.x!==undefined?roundPretty(L.x):''}</td><td>${L.y!==undefined?roundPretty(L.y):''}</td><td>${R.x!==undefined?roundPretty(R.x):''}</td><td>${R.y!==undefined?roundPretty(R.y):''}</td></tr>`);}}
 
-// Añade sugerencias pedagógicas para indeterminación
 function showStatus(est,a,expr){
   const box=$("#status");
   const exprLower = expr.toLowerCase();
-  
+
   if(est.type==='finite'){
     box.innerHTML=`<span class="pill good">Límite estimado L ≈ ${roundPretty(est.value)}</span>`;
   } else if(est.type==='infinite'){
@@ -240,7 +239,7 @@ function showStatus(est,a,expr){
         suggestion = "Sugerencia: Aplica los Límites Fundamentales Trigonométricos (Libro 3).";
     }
     
-    box.innerHTML=`<span class="pill warn">⚠️ Resultado Indeterminado. ${suggestion}</span>`;
+    box.innerHTML=`<span class="pill warn">⚠️ Indeterminación. ${suggestion}</span>`;
   }
 }
 
@@ -249,7 +248,7 @@ function run(calcOnly=false){
   showError('');
   const expr=$('#expr').value.trim();
   const aVal = $('#a').value.trim();
-  const a = parseFloat(aVal); // Usado para el cálculo
+  const a = parseFloat(aVal); 
   const R=Math.max(0.01,parseFloat($('#range').value)||5);
   const eps=parseFloat($('#eps').value);
   const n=parseInt($('#samples').value,10);
@@ -259,18 +258,20 @@ function run(calcOnly=false){
   const tab=calcTable(fn,a,eps,n);
   const est=estimateLimit(tab);
   
-  // Ajustar rango Y inicial si el límite es infinito o un número grande
-  if (est.type === 'infinite' || Math.abs(est.value) > 10) {
-    currentYRange = Math.max(10, Math.abs(est.value) * 1.5);
-    dragYCenter = est.type === 'infinite' ? 0 : est.value;
-  } else if (currentYRange === 0) {
-      // Ajustar rango Y si es el primer cálculo o se ha reseteado
-      const yValues = [...tab.left.map(p=>p.y), ...tab.right.map(p=>p.y)].filter(isFinite);
-      if (yValues.length > 0) {
-        const min = Math.min(...yValues);
-        const max = Math.max(...yValues);
-        currentYRange = (max - min) / 2 * 1.5;
-        dragYCenter = (max + min) / 2;
+  // Ajuste automático del rango Y
+  const yValues = [...tab.left.map(p=>p.y), ...tab.right.map(p=>p.y)].filter(isFinite);
+  if (yValues.length > 0) {
+      const min = Math.min(...yValues);
+      const max = Math.max(...yValues);
+      const currentCenter = (min + max) / 2;
+      const currentRange = (max - min) / 2;
+
+      if (est.type === 'infinite' || currentRange > 20) {
+        currentYRange = currentRange * 1.5 || 5;
+        dragYCenter = currentCenter;
+      } else if (currentYRange === 0) {
+         currentYRange = currentRange * 1.5 || 5;
+         dragYCenter = currentCenter;
       }
   }
 
@@ -330,7 +331,7 @@ on(canvas, 'mouseup', () => {
 on(canvas, 'mousemove', e => {
     if (isDragging && lastData) {
         const dragDeltaX = e.clientX - dragStartX;
-        const dragDeltaY = e.clientY - dragStartY; 
+        const dragDeltaY = e.clientY - dragStartY;
         
         const R = parseFloat($('#range').value);
         const W = lastData.W, H = lastData.H; 
@@ -415,6 +416,12 @@ function initExamples() {
 }
 
 // --- Motor y Arranque ---
+function downloadImage(){resizeCanvas();draw();const link=document.createElement('a');link.download='limite.png';link.href=canvas.toDataURL('image/png');link.click();}
+// NOTA: Se elimina downloadPDF() para evitar problemas en GitHub Pages.
+
+on($('#btnPNG'),'click',downloadImage);
+// on($('#btnPDF'),'click',downloadPDF); // Línea eliminada
+
 initExamples();
 resizeCanvas();
 run(false);
